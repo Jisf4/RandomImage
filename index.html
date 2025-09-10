@@ -28,6 +28,7 @@
         <button id="startBtn">Iniciar Quiz</button>
         <button id="startOverBtn" class="ghost">Reiniciar</button>
         <button id="revealBtn">Mostrar respuesta</button>
+        <button id="pronounceBtn" class="ghost">Pronunciación</button>
         <button id="nextBtn" class="ghost">Siguiente</button>
         <button id="correctBtn" class="ghost">Correcto</button>
         <button id="wrongBtn" class="ghost">Incorrecto</button>
@@ -48,6 +49,7 @@ let timerInterval=null, startTime=null;
 const imageWrap=document.getElementById("imageWrap");
 const captionEl=document.getElementById("caption");
 const revealBtn=document.getElementById("revealBtn");
+const pronounceBtn=document.getElementById("pronounceBtn");
 const nextBtn=document.getElementById("nextBtn");
 const correctBtn=document.getElementById("correctBtn");
 const wrongBtn=document.getElementById("wrongBtn");
@@ -97,6 +99,17 @@ revealBtn.onclick=()=>revealed?ocultarRespuesta():mostrarRespuesta();
 nextBtn.onclick=()=>siguienteImagen();
 correctBtn.onclick=()=>{if(!revealed)return;correct++;intentos++;actualizarPuntaje();siguienteImagen()};
 wrongBtn.onclick=()=>{if(!revealed)return;intentos++;actualizarPuntaje();siguienteImagen()};
+
+/* 🔊 Pronunciación */
+pronounceBtn.onclick=()=>{
+  if(!revealed) return; // solo si ya se mostró la respuesta
+  const idx=order[currentIndex], it=items[idx];
+  // Obtener el nombre base del archivo de imagen
+  const baseName=it.src.split("/").pop().split(".")[0];
+  const audioPath=`audio/${baseName}.mp3`;
+  const audio=new Audio(audioPath);
+  audio.play().catch(err=>console.error("Error reproduciendo audio:", err));
+};
 
 resetGame();
 
