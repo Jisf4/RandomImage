@@ -202,7 +202,7 @@ correctBtn.onclick=()=>{
   if(!revealed) return;
   correct++;intentos++;actualizarPuntaje();
   bloquearRespuestas();
-  setTimeout(siguienteImagen,2000);
+  setTimeout(siguienteImagen,1000);
 };
 
 wrongBtn.onclick=()=>{
@@ -241,3 +241,4 @@ fetch("images.json")
 </script>
 </body>
 </html>
+
