@@ -16,12 +16,14 @@
     .caption.revealed{background:#22c55e;font-weight:bold}
     .toolbar{margin-top:10px;display:flex;gap:10px;flex-wrap:wrap}
     .status{margin-top:10px;display:flex;justify-content:space-between;font-size:14px}
+    .final-screen{text-align:center;padding:20px}
+    .hidden{display:none}
   </style>
 </head>
 <body>
   <div class="app">
     <h1>Quiz de Imágenes</h1>
-    <div>
+    <div id="quizScreen">
       <div class="image-wrap" id="imageWrap">Cargando imágenes…</div>
       <div class="caption" id="caption">—</div>
       <div class="toolbar">
@@ -29,7 +31,6 @@
         <button id="startOverBtn" class="ghost">Reiniciar</button>
         <button id="revealBtn">Mostrar respuesta</button>
         <button id="pronounceBtn" class="ghost">Pronunciación</button>
-        <button id="nextBtn" class="ghost">Siguiente</button>
         <button id="correctBtn" class="ghost">Correcto</button>
         <button id="wrongBtn" class="ghost">Incorrecto</button>
       </div>
@@ -39,6 +40,13 @@
         <div id="timer">00:00</div>
       </div>
     </div>
+
+    <div id="finalScreen" class="final-screen hidden">
+      <h2>¡Has terminado el quiz! 🎉</h2>
+      <p id="finalScore"></p>
+      <p id="finalTime"></p>
+      <button id="restartBtn">Reiniciar</button>
+    </div>
   </div>
 
 <script>
@@ -46,11 +54,15 @@ let items=[], order=[], currentIndex=0, revealed=false;
 let correct=0, intentos=0;
 let timerInterval=null, startTime=null;
 
+const quizScreen=document.getElementById("quizScreen");
+const finalScreen=document.getElementById("finalScreen");
+const finalScoreEl=document.getElementById("finalScore");
+const finalTimeEl=document.getElementById("finalTime");
+
 const imageWrap=document.getElementById("imageWrap");
 const captionEl=document.getElementById("caption");
 const revealBtn=document.getElementById("revealBtn");
 const pronounceBtn=document.getElementById("pronounceBtn");
-const nextBtn=document.getElementById("nextBtn");
 const correctBtn=document.getElementById("correctBtn");
 const wrongBtn=document.getElementById("wrongBtn");
 const progressEl=document.getElementById("progress");
@@ -68,6 +80,8 @@ function resetGame(){
   imageWrap.textContent="¡Listo para empezar!";
   progressEl.textContent="0 / 0";
   scoreEl.textContent="Puntaje: 0 / 0 (0%)";
+  quizScreen.classList.remove("hidden");
+  finalScreen.classList.add("hidden");
 }
 
 function render(){
@@ -84,7 +98,7 @@ function mostrarRespuesta(){
   captionEl.textContent=it.caption;
   captionEl.classList.add("revealed");
   revealed=true;
-  reproducirPronunciacion(it.src); // 🔊 reproducir automáticamente
+  reproducirPronunciacion(it.src); // 🔊 automático
 }
 
 function actualizarPuntaje(){
@@ -94,8 +108,11 @@ function actualizarPuntaje(){
 
 function siguienteImagen(){
   currentIndex++;
-  if(currentIndex>=order.length){currentIndex=0;shuffle(order);}
-  render();
+  if(currentIndex>=order.length){
+    terminarQuiz();
+  }else{
+    render();
+  }
 }
 
 function iniciarTimer(){
@@ -109,6 +126,15 @@ function iniciarTimer(){
 }
 function stopTimer(){clearInterval(timerInterval);timerInterval=null}
 
+function terminarQuiz(){
+  stopTimer();
+  quizScreen.classList.add("hidden");
+  finalScreen.classList.remove("hidden");
+  const pct=intentos?Math.round(correct/intentos*100):0;
+  finalScoreEl.textContent=`Tu puntaje: ${correct} / ${intentos} (${pct}%)`;
+  finalTimeEl.textContent=`Tiempo total: ${timerEl.textContent}`;
+}
+
 document.getElementById("startBtn").onclick=()=>{
   resetGame();
   order=items.map((_,i)=>i);shuffle(order);currentIndex=0;
@@ -116,10 +142,21 @@ document.getElementById("startBtn").onclick=()=>{
 };
 
 document.getElementById("startOverBtn").onclick=()=>resetGame();
+document.getElementById("restartBtn").onclick=()=>resetGame();
+
 revealBtn.onclick=()=>revealed?ocultarRespuesta():mostrarRespuesta();
-nextBtn.onclick=()=>siguienteImagen();
-correctBtn.onclick=()=>{if(!revealed)return;correct++;intentos++;actualizarPuntaje();siguienteImagen()};
-wrongBtn.onclick=()=>{if(!revealed)return;intentos++;actualizarPuntaje();siguienteImagen()};
+
+correctBtn.onclick=()=>{
+  if(!revealed) return;
+  correct++;intentos++;actualizarPuntaje();
+  setTimeout(siguienteImagen,2000); // ⏳ espera 2s
+};
+
+wrongBtn.onclick=()=>{
+  if(!revealed) return;
+  intentos++;actualizarPuntaje();
+  setTimeout(siguienteImagen,2000); // ⏳ espera 2s
+};
 
 /* 🔊 Pronunciación */
 function reproducirPronunciacion(imgSrc){
@@ -129,7 +166,7 @@ function reproducirPronunciacion(imgSrc){
   audio.play().catch(err=>console.error("Error reproduciendo audio:", err));
 }
 pronounceBtn.onclick=()=>{
-  if(!revealed) return;
+  if(order.length===0) return;
   const idx=order[currentIndex], it=items[idx];
   reproducirPronunciacion(it.src);
 };
