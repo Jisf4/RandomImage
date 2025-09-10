@@ -79,13 +79,34 @@ function render(){
 }
 
 function ocultarRespuesta(){revealed=false;captionEl.textContent="—";captionEl.classList.remove("revealed")}
-function mostrarRespuesta(){const idx=order[currentIndex], it=items[idx];captionEl.textContent=it.caption;captionEl.classList.add("revealed");revealed=true}
+function mostrarRespuesta(){
+  const idx=order[currentIndex], it=items[idx];
+  captionEl.textContent=it.caption;
+  captionEl.classList.add("revealed");
+  revealed=true;
+  reproducirPronunciacion(it.src); // 🔊 reproducir automáticamente
+}
 
-function actualizarPuntaje(){const pct=intentos?Math.round(correct/intentos*100):0;scoreEl.textContent=`Puntaje: ${correct} / ${intentos} (${pct}%)`}
+function actualizarPuntaje(){
+  const pct=intentos?Math.round(correct/intentos*100):0;
+  scoreEl.textContent=`Puntaje: ${correct} / ${intentos} (${pct}%)`;
+}
 
-function siguienteImagen(){currentIndex++;if(currentIndex>=order.length){currentIndex=0;shuffle(order);}render()}
+function siguienteImagen(){
+  currentIndex++;
+  if(currentIndex>=order.length){currentIndex=0;shuffle(order);}
+  render();
+}
 
-function iniciarTimer(){startTime=Date.now();timerInterval=setInterval(()=>{const diff=Math.floor((Date.now()-startTime)/1000);const m=String(Math.floor(diff/60)).padStart(2,"0");const s=String(diff%60).padStart(2,"0");timerEl.textContent=`${m}:${s}`;},1000)}
+function iniciarTimer(){
+  startTime=Date.now();
+  timerInterval=setInterval(()=>{
+    const diff=Math.floor((Date.now()-startTime)/1000);
+    const m=String(Math.floor(diff/60)).padStart(2,"0");
+    const s=String(diff%60).padStart(2,"0");
+    timerEl.textContent=`${m}:${s}`;
+  },1000);
+}
 function stopTimer(){clearInterval(timerInterval);timerInterval=null}
 
 document.getElementById("startBtn").onclick=()=>{
@@ -101,14 +122,16 @@ correctBtn.onclick=()=>{if(!revealed)return;correct++;intentos++;actualizarPunta
 wrongBtn.onclick=()=>{if(!revealed)return;intentos++;actualizarPuntaje();siguienteImagen()};
 
 /* 🔊 Pronunciación */
-pronounceBtn.onclick=()=>{
-  if(!revealed) return; // solo si ya se mostró la respuesta
-  const idx=order[currentIndex], it=items[idx];
-  // Obtener el nombre base del archivo de imagen
-  const baseName=it.src.split("/").pop().split(".")[0];
+function reproducirPronunciacion(imgSrc){
+  const baseName=imgSrc.split("/").pop().split(".")[0];
   const audioPath=`audio/${baseName}.mp3`;
   const audio=new Audio(audioPath);
   audio.play().catch(err=>console.error("Error reproduciendo audio:", err));
+}
+pronounceBtn.onclick=()=>{
+  if(!revealed) return;
+  const idx=order[currentIndex], it=items[idx];
+  reproducirPronunciacion(it.src);
 };
 
 resetGame();
