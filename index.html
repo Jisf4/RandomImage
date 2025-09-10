@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="en">
+<html lang="es">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Random Image Quiz</title>
+  <title>Quiz de Imágenes</title>
   <style>
     body{margin:0;font-family:sans-serif;background:#0f172a;color:#f1f5f9;display:flex;align-items:center;justify-content:center;padding:20px}
     .app{max-width:900px;width:100%;background:#1e293b;padding:20px;border-radius:12px;box-shadow:0 4px 16px rgba(0,0,0,.4)}
@@ -20,36 +20,29 @@
 </head>
 <body>
   <div class="app">
-    <h1>Random Image Quiz</h1>
+    <h1>Quiz de Imágenes</h1>
     <div>
-      <div class="image-wrap" id="imageWrap">No images yet</div>
+      <div class="image-wrap" id="imageWrap">Cargando imágenes…</div>
       <div class="caption" id="caption">—</div>
       <div class="toolbar">
-        <button id="startBtn">Start Quiz</button>
-        <button id="startOverBtn" class="ghost">Start Over</button>
-        <button id="revealBtn">Reveal</button>
-        <button id="nextBtn" class="ghost">Next</button>
-        <button id="correctBtn" class="ghost">Correct</button>
-        <button id="wrongBtn" class="ghost">Wrong</button>
+        <button id="startBtn">Iniciar Quiz</button>
+        <button id="startOverBtn" class="ghost">Reiniciar</button>
+        <button id="revealBtn">Mostrar respuesta</button>
+        <button id="nextBtn" class="ghost">Siguiente</button>
+        <button id="correctBtn" class="ghost">Correcto</button>
+        <button id="wrongBtn" class="ghost">Incorrecto</button>
       </div>
       <div class="status">
         <div id="progress">0 / 0</div>
-        <div id="score">Score: 0 / 0 (0%)</div>
+        <div id="score">Puntaje: 0 / 0 (0%)</div>
         <div id="timer">00:00</div>
       </div>
     </div>
   </div>
 
 <script>
-/* 🔽 Define your image list here */
-const imageList = [
-  {src: "images/cat.jpg", caption: "Cat"},
-  {src: "images/dog.jpg", caption: "Dog"},
-  {src: "images/bird.png", caption: "Bird"}
-];
-
 let items=[], order=[], currentIndex=0, revealed=false;
-let correct=0, attempted=0;
+let correct=0, intentos=0;
 let timerInterval=null, startTime=null;
 
 const imageWrap=document.getElementById("imageWrap");
@@ -66,47 +59,58 @@ function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random
 
 function resetGame(){
   order=[];currentIndex=0;revealed=false;
-  correct=0;attempted=0;
+  correct=0;intentos=0;
   stopTimer();
   timerEl.textContent="00:00";
   captionEl.textContent="—";captionEl.classList.remove("revealed");
-  imageWrap.textContent="No images yet";
+  imageWrap.textContent="¡Listo para empezar!";
   progressEl.textContent="0 / 0";
-  scoreEl.textContent="Score: 0 / 0 (0%)";
+  scoreEl.textContent="Puntaje: 0 / 0 (0%)";
 }
 
 function render(){
   if(order.length===0) return;
   const idx=order[currentIndex], it=items[idx];
   imageWrap.innerHTML=`<img src="${it.src}" alt="">`;
-  hideAnswer();
+  ocultarRespuesta();
   progressEl.textContent=`${currentIndex+1} / ${order.length}`;
 }
 
-function hideAnswer(){revealed=false;captionEl.textContent="—";captionEl.classList.remove("revealed")}
-function showAnswer(){const idx=order[currentIndex], it=items[idx];captionEl.textContent=it.caption;captionEl.classList.add("revealed");revealed=true}
+function ocultarRespuesta(){revealed=false;captionEl.textContent="—";captionEl.classList.remove("revealed")}
+function mostrarRespuesta(){const idx=order[currentIndex], it=items[idx];captionEl.textContent=it.caption;captionEl.classList.add("revealed");revealed=true}
 
-function updateScore(){const pct=attempted?Math.round(correct/attempted*100):0;scoreEl.textContent=`Score: ${correct} / ${attempted} (${pct}%)`}
+function actualizarPuntaje(){const pct=intentos?Math.round(correct/intentos*100):0;scoreEl.textContent=`Puntaje: ${correct} / ${intentos} (${pct}%)`}
 
-function nextImage(){currentIndex++;if(currentIndex>=order.length){currentIndex=0;shuffle(order);}render()}
+function siguienteImagen(){currentIndex++;if(currentIndex>=order.length){currentIndex=0;shuffle(order);}render()}
 
-function startTimer(){startTime=Date.now();timerInterval=setInterval(()=>{const diff=Math.floor((Date.now()-startTime)/1000);const m=String(Math.floor(diff/60)).padStart(2,"0");const s=String(diff%60).padStart(2,"0");timerEl.textContent=`${m}:${s}`;},1000)}
+function iniciarTimer(){startTime=Date.now();timerInterval=setInterval(()=>{const diff=Math.floor((Date.now()-startTime)/1000);const m=String(Math.floor(diff/60)).padStart(2,"0");const s=String(diff%60).padStart(2,"0");timerEl.textContent=`${m}:${s}`;},1000)}
 function stopTimer(){clearInterval(timerInterval);timerInterval=null}
 
 document.getElementById("startBtn").onclick=()=>{
   resetGame();
-  items=[...imageList]; // load predefined list
   order=items.map((_,i)=>i);shuffle(order);currentIndex=0;
-  render();startTimer();
+  render();iniciarTimer();
 };
 
 document.getElementById("startOverBtn").onclick=()=>resetGame();
-revealBtn.onclick=()=>revealed?hideAnswer():showAnswer();
-nextBtn.onclick=()=>nextImage();
-correctBtn.onclick=()=>{if(!revealed)return;correct++;attempted++;updateScore();nextImage()};
-wrongBtn.onclick=()=>{if(!revealed)return;attempted++;updateScore();nextImage()};
+revealBtn.onclick=()=>revealed?ocultarRespuesta():mostrarRespuesta();
+nextBtn.onclick=()=>siguienteImagen();
+correctBtn.onclick=()=>{if(!revealed)return;correct++;intentos++;actualizarPuntaje();siguienteImagen()};
+wrongBtn.onclick=()=>{if(!revealed)return;intentos++;actualizarPuntaje();siguienteImagen()};
 
 resetGame();
+
+/* 🔽 Carga automática del archivo images.json */
+fetch("images.json")
+  .then(res=>res.json())
+  .then(data=>{
+    items=data;
+    imageWrap.textContent="¡Imágenes cargadas! Presiona Iniciar.";
+  })
+  .catch(err=>{
+    imageWrap.textContent="❌ Error al cargar images.json";
+    console.error(err);
+  });
 </script>
 </body>
 </html>
