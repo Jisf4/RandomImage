@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Quiz de Imágenes</title>
+  <style>
+    body{margin:0;font-family:sans-serif;background:#0f172a;color:#f1f5f9;display:flex;align-items:center;justify-content:center;padding:20px}
+    .app{max-width:900px;width:100%;background:#1e293b;padding:20px;border-radius:12px;box-shadow:0 4px 16px rgba(0,0,0,.4)}
+    h1{margin-top:0}
+    button{
+      border:none;
+      padding:8px 12px;
+      border-radius:8px;
+      margin:4px;
+      cursor:pointer;
+      transition:0.2s;
+    }
+    button.primary{background:#6366f1;color:white;}     /* Disponible */
+    button.disabled{background:#334155;color:#94a3b8;cursor:not-allowed;} /* No disponible */
+    button.action{background:#22c55e;color:white;}      /* Acción */
+    .image-wrap{background:#0f172a;padding:10px;border-radius:8px;text-align:center;min-height:300px;display:flex;align-items:center;justify-content:center}
+    .image-wrap img{max-width:100%;max-height:300px;object-fit:contain}
+    .caption{margin-top:10px;padding:8px;border-radius:8px;background:#334155;text-align:center;min-height:40px}
+    .caption.revealed{background:#22c55e;font-weight:bold}
+    .toolbar{margin-top:10px;display:flex;gap:10px;flex-wrap:wrap}
+    .status{margin-top:10px;display:flex;justify-content:space-between;font-size:14px}
+    .final-screen{text-align:center;padding:20px}
+    .hidden{display:none}
+  </style>
+</head>
+<body>
+  <div class="app">
+    <h1>Quiz de Imágenes</h1>
+    <div id="quizScreen">
+      <div class="image-wrap" id="imageWrap">Cargando imágenes…</div>
+      <div class="caption" id="caption">—</div>
+      <div class="toolbar">
+        <button id="startBtn" class="primary">Iniciar Quiz</button>
+        <button id="startOverBtn" class="primary">Reiniciar</button>
+        <button id="revealBtn" class="primary">Mostrar respuesta</button>
+        <button id="pronounceBtn" class="primary">Pronunciación</button>
+        <button id="correctBtn" class="disabled" disabled>Correcto</button>
+        <button id="wrongBtn" class="disabled" disabled>Incorrecto</button>
+      </div>
+      <div class="status">
+        <div id="progress">0 / 0</div>
+        <div id="score">Puntaje: 0 / 0 (0%)</div>
+        <div id="timer">00:00</div>
+      </div>
+    </div>
+
+    <div id="finalScreen" class="final-screen hidden">
+      <h2>¡Has terminado el quiz! 🎉</h2>
+      <p id="finalScore"></p>
+      <p id="finalTime"></p>
+      <button id="restartBtn" class="primary">Reiniciar</button>
+    </div>
+  </div>
+
+<script>
+let items=[], order=[], currentIndex=0, revealed=false;
+let correct=0, intentos=0;
+let timerInterval=null, startTime=null;
+
+const quizScreen=document.getElementById("quizScreen");
+const finalScreen=document.getElementById("finalScreen");
+const finalScoreEl=document.getElementById("finalScore");
+const finalTimeEl=document.getElementById("finalTime");
+
+const startBtn=document.getElementById("startBtn");
+const startOverBtn=document.getElementById("startOverBtn");
+const restartBtn=document.getElementById("restartBtn");
+const imageWrap=document.getElementById("imageWrap");
+const captionEl=document.getElementById("caption");
+const revealBtn=document.getElementById("revealBtn");
+const pronounceBtn=document.getElementById("pronounceBtn");
+const correctBtn=document.getElementById("correctBtn");
+const wrongBtn=document.getElementById("wrongBtn");
+const progressEl=document.getElementById("progress");
+const scoreEl=document.getElementById("score");
+const timerEl=document.getElementById("timer");
+
+function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}}
+
+function resetGame(){
+  order=[];currentIndex=0;revealed=false;
+  correct=0;intentos=0;
+  stopTimer();
+  timerEl.textContent="00:00";
+  captionEl.textContent="—";captionEl.classList.remove("revealed");
+  imageWrap.textContent="¡Listo para empezar!";
+  progressEl.textContent="0 / 0";
+  scoreEl.textContent="Puntaje: 0 / 0 (0%)";
+  quizScreen.classList.remove("hidden");
+  finalScreen.classList.add("hidden");
+  startBtn.classList.remove("hidden"); // volver a mostrar Iniciar
+  bloquearRespuestas(); 
+  habilitarReveal();
+}
+
+function render(){
+  if(order.length===0) return;
+  const idx=order[currentIndex], it=items[idx];
+  imageWrap.innerHTML=`<img src="${it.src}" alt="">`;
+  ocultarRespuesta();
+  progressEl.textContent=`${currentIndex+1} / ${order.length}`;
+}
+
+function ocultarRespuesta(){
+  revealed=false;
+  captionEl.textContent="—";
+  captionEl.classList.remove("revealed");
+  bloquearRespuestas();
+  habilitarReveal();
+}
+function mostrarRespuesta(){
+  const idx=order[currentIndex], it=items[idx];
+  captionEl.textContent=it.caption;
+  captionEl.classList.add("revealed");
+  revealed=true;
+  desbloquearRespuestas();
+  deshabilitarReveal();
+  reproducirPronunciacion(it.src);
+}
+
+function actualizarPuntaje(){
+  const pct=intentos?Math.round(correct/intentos*100):0;
+  scoreEl.textContent=`Puntaje: ${correct} / ${intentos} (${pct}%)`;
+}
+
+function siguienteImagen(){
+  currentIndex++;
+  if(currentIndex>=order.length){
+    terminarQuiz();
+  }else{
+    render();
+  }
+}
+
+function iniciarTimer(){
+  startTime=Date.now();
+  timerInterval=setInterval(()=>{
+    const diff=Math.floor((Date.now()-startTime)/1000);
+    const m=String(Math.floor(diff/60)).padStart(2,"0");
+    const s=String(diff%60).padStart(2,"0");
+    timerEl.textContent=`${m}:${s}`;
+  },1000);
+}
+function stopTimer(){clearInterval(timerInterval);timerInterval=null}
+
+function terminarQuiz(){
+  stopTimer();
+  quizScreen.classList.add("hidden");
+  finalScreen.classList.remove("hidden");
+  const pct=intentos?Math.round(correct/intentos*100):0;
+  finalScoreEl.textContent=`Tu puntaje: ${correct} / ${intentos} (${pct}%)`;
+  finalTimeEl.textContent=`Tiempo total: ${timerEl.textContent}`;
+}
+
+/* 🔒 Bloqueo de botones */
+function bloquearRespuestas(){
+  [correctBtn,wrongBtn].forEach(b=>{
+    b.disabled=true;
+    b.classList.remove("primary","action");
+    b.classList.add("disabled");
+  });
+}
+function desbloquearRespuestas(){
+  [correctBtn,wrongBtn].forEach(b=>{
+    b.disabled=false;
+    b.classList.remove("disabled");
+    b.classList.add("action");
+  });
+}
+function habilitarReveal(){
+  revealBtn.disabled=false;
+  revealBtn.classList.remove("disabled");
+  revealBtn.classList.add("primary");
+}
+function deshabilitarReveal(){
+  revealBtn.disabled=true;
+  revealBtn.classList.remove("primary");
+  revealBtn.classList.add("disabled");
+}
+
+startBtn.onclick=()=>{
+  resetGame();
+  order=items.map((_,i)=>i);shuffle(order);currentIndex=0;
+  render();iniciarTimer();
+  startBtn.classList.add("hidden"); // ocultar al iniciar
+};
+
+startOverBtn.onclick=()=>{
+  if(confirm("¿Seguro que deseas reiniciar el quiz?")) resetGame();
+};
+restartBtn.onclick=()=>resetGame();
+
+revealBtn.onclick=()=>mostrarRespuesta();
+
+correctBtn.onclick=()=>{
+  if(!revealed) return;
+  correct++;intentos++;actualizarPuntaje();
+  bloquearRespuestas();
+  setTimeout(siguienteImagen,2000);
+};
+
+wrongBtn.onclick=()=>{
+  if(!revealed) return;
+  intentos++;actualizarPuntaje();
+  bloquearRespuestas();
+  setTimeout(siguienteImagen,2000);
+};
+
+/* 🔊 Pronunciación */
+function reproducirPronunciacion(imgSrc){
+  const baseName=imgSrc.split("/").pop().split(".")[0];
+  const audioPath=`audio/${baseName}.mp3`;
+  const audio=new Audio(audioPath);
+  audio.play().catch(err=>console.error("Error reproduciendo audio:", err));
+}
+pronounceBtn.onclick=()=>{
+  if(order.length===0) return;
+  const idx=order[currentIndex], it=items[idx];
+  reproducirPronunciacion(it.src);
+};
+
+resetGame();
+
+/* 🔽 Carga automática del archivo images.json */
+fetch("images.json")
+  .then(res=>res.json())
+  .then(data=>{
+    items=data;
+    imageWrap.textContent="¡Imágenes cargadas! Presiona Iniciar.";
+  })
+  .catch(err=>{
+    imageWrap.textContent="❌ Error al cargar images.json";
+    console.error(err);
+  });
+</script>
+</body>
+</html>
